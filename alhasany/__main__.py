@@ -10,8 +10,7 @@ import argparse
 import json
 import sys
 
-from .config import load_settings
-from .pipeline import default_meta, process
+from . import setup
 
 
 def main():
@@ -33,10 +32,14 @@ def main():
     p.add_argument("--number", type=int)
     p.add_argument("--merge-prayer", action="store_true")
     a = ap.parse_args()
+    # قبل أي حاجة: المكتبات الناقصة بس (اللي موجود على الجهاز بيتستخدم زي ما هو)
+    if a.cmd != "check":
+        miss = setup.missing_packages(bool(setup.has_nvidia()))
+        if miss and not setup.install_packages(miss):
+            sys.exit("تنزيل المكتبات فشل — اتأكد من النت وجرّب تاني")
     if a.cmd in (None, "ui"):
         from .server import serve
         return serve(open_browser=not getattr(a, "no_browser", False), port=getattr(a, "port", 8765))
-    from . import setup
     if a.cmd == "check":
         print(json.dumps({**setup.report(setup.root_dir()), "root": str(setup.root_dir() or "")}, ensure_ascii=False, indent=1))
         return
@@ -45,6 +48,8 @@ def main():
     if a.cmd == "setup":
         print("\n✓ الجهاز جاهز")
         return
+    from .config import load_settings
+    from .pipeline import default_meta, process
     s = load_settings()
     meta = default_meta(a.file, s)
     if a.cmd == "info":
