@@ -29,6 +29,13 @@ def save_settings(s):
     SETTINGS.write_text(json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+def update_settings(changes):
+    """بيحفظ اللي اتغير بس في settings.json (الباقي بيفضل من defaults ويتحدّث مع البرنامج)."""
+    s = _load(SETTINGS, {})
+    s.update(changes)
+    save_settings(s)
+
+
 def load_secrets():
     return _load(SECRETS, {})
 

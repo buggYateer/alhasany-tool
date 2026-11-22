@@ -43,6 +43,14 @@ def transcript_for(path, log=print):
     return t
 
 
+def build_caption(settings, a, title="", subtitle=None, verses=None):
+    """الوصف من جديد بالعنوان (الواجهة بتستخدمها لما العنوان يتكتب أو يتغير)."""
+    if a["kind"] == "khutba":
+        return captions.khutba(settings, a["tag"], title, a["starts"], a["with_prayer"], a["month"], a["year"])
+    series = next((s for s in settings["series"] if s["key"] == a.get("series")), None)
+    return captions.lesson(settings, a["tag"], a["day"], title, a["month"], a["year"], series, a.get("number"), subtitle, verses)
+
+
 def process(path, meta, log=print, outdir=None):
     settings = load_settings()
     outdir = Path(outdir or output_dir(meta.get("year"), meta.get("month")))
@@ -87,12 +95,15 @@ def process(path, meta, log=print, outdir=None):
                 item["caption"] = captions.recitation(settings, who["tag"], "العشاء" if f["role"] == "isha" else "الجمعة", runs, mo, yr)
         if f["role"] == "khutba":
             starts = cutter.section_starts(f["ranges"])
-            item["caption"] = captions.khutba(settings, who["tag"], "", starts, cut_meta.get("merge_prayer"), mo, yr)
+            item["cap_args"] = {"kind": "khutba", "tag": who["tag"], "starts": starts, "with_prayer": bool(cut_meta.get("merge_prayer")), "month": mo, "year": yr}
+            item["caption"] = build_caption(settings, item["cap_args"])
             item["prompt"] = captions.title_prompt("khutba", who["full"], captions.sample_text(t, f["ranges"][:f["n_khutba"]]))
             if len(starts) < 2:
                 item["warnings"].append("مش لاقي بداية الخطبة الثانية — التوقيتات متشالة")
         if f["role"] == "lesson":
-            item["caption"] = captions.lesson(settings, who["tag"], meta["weekday"], "", mo, yr, series, meta.get("number"))
+            item["cap_args"] = {"kind": "lesson", "tag": who["tag"], "day": meta["weekday"], "month": mo, "year": yr,
+                                "series": meta.get("series"), "number": meta.get("number")}
+            item["caption"] = build_caption(settings, item["cap_args"])
             ctx = f"السلسلة: {series['name']}" if series else ""
             item["prompt"] = captions.title_prompt("lesson", who["full"], captions.sample_text(t, f["ranges"]), ctx)
         results.append(item)

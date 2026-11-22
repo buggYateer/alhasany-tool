@@ -1,4 +1,5 @@
 """سطر الأوامر:
+  python -m alhasany                              ← الواجهة (بتتفتح في المتصفح + لينك/QR للموبايل)
   python -m alhasany setup                        ← أول مرة: اختيار مكان فولدر Alhasany + تنزيل الناقص بس
   python -m alhasany check                        ← يعرض الموجود والناقص على الجهاز من غير ما ينزّل حاجة
   python -m alhasany info FILE                    ← البيانات المقترحة (التاريخ، الشيخ، النوع)
@@ -17,7 +18,10 @@ def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(prog="alhasany")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub = ap.add_subparsers(dest="cmd")
+    u = sub.add_parser("ui")
+    u.add_argument("--no-browser", action="store_true")
+    u.add_argument("--port", type=int, default=8765)
     sub.add_parser("setup")
     sub.add_parser("check")
     i = sub.add_parser("info")
@@ -29,6 +33,9 @@ def main():
     p.add_argument("--number", type=int)
     p.add_argument("--merge-prayer", action="store_true")
     a = ap.parse_args()
+    if a.cmd in (None, "ui"):
+        from .server import serve
+        return serve(open_browser=not getattr(a, "no_browser", False), port=getattr(a, "port", 8765))
     from . import setup
     if a.cmd == "check":
         print(json.dumps({**setup.report(setup.root_dir()), "root": str(setup.root_dir() or "")}, ensure_ascii=False, indent=1))
