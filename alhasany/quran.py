@@ -102,11 +102,12 @@ def check_recitation(words, q=None):
         return []
     chunks = [" ".join(heard[i:i + 12]) for i in range(0, len(heard), 8)]
     runs = q.runs(chunks)
-    ref = [(x, 0) for x in norm(FATIHA_TXT).split()] if heard[:3] == norm(FATIHA_TXT).split()[:3] else []
-    if runs:
-        su = max(set(r[1] for r in runs), key=lambda s: sum(1 for r in runs if r[1] == s))
-        ays = [a for r in runs if r[1] == su for a in (r[2], r[3])]
-        ref += q.ref_words(su, max(1, min(ays) - 1), max(ays) + 1)
+    # الفاتحة: موجودة لو «مالك يوم الدين» في أول الكلام (Whisper ساعات بيفوّت أولها)
+    has_f = "مالك يوم الدين" in " ".join(heard[:25])
+    ref = [(x, 0, False) for x in norm(FATIHA_TXT).split()] if has_f else []
+    # المرجع = كل المقاطع اللي اتعرفت بالترتيب، مع آية احتياطي قبل/بعد (متعلّمة pad — نقصها مش غلط)
+    for _, su, a, b in runs:
+        ref += [(x, ay, ay < a or ay > b) for x, ay in q.ref_words(su, max(1, a - 1), b + 1)]
 
     def chars(ws):
         s, own = [], []
@@ -115,7 +116,7 @@ def check_recitation(words, q=None):
                 s.append(ch)
                 own.append(k)
         return "".join(s), own
-    rs, rown = chars([x for x, _ in ref])
+    rs, rown = chars([x for x, _, _ in ref])
     hs, hown = chars(heard)
     sm = difflib.SequenceMatcher(a=rs, b=hs, autojunk=False)
     issues = []
@@ -127,7 +128,11 @@ def check_recitation(words, q=None):
         wi1 = rown[min(i1, len(rown) - 1)]
         wi2 = rown[min(max(i2 - 1, i1), len(rown) - 1)]
         got = " ".join(heard[wj1:wj2 + 1]) if op != "delete" else ""
-        exp = " ".join(x for x, _ in ref[wi1:wi2 + 1]) if op != "insert" else ""
+        exp = " ".join(x for x, _, _ in ref[wi1:wi2 + 1]) if op != "insert" else ""
+        # ناقص في الأول/الآخر (قبل أول كلمة اتسمعت أو بعد آخر كلمة) أو في آية الاحتياط ← مش غلط
+        pads = [p for _, _, p in ref[wi1:wi2 + 1]]
+        if op == "delete" and (j1 == 0 or j1 >= len(hs) or (any(pads) and pads.count(False) <= 1)):
+            continue
         kind = {"replace": "مختلفة", "delete": "ناقصة", "insert": "زيادة"}[op]
         if op == "insert" and got and got in " ".join(heard[max(0, wj1 - 25):wj1]):
             kind = "إعادة"

@@ -76,7 +76,13 @@ def process(path, meta, log=print, outdir=None):
             runs = q.runs(texts)
             item["surahs"] = [f"{n} ({a}-{b})" for n, _, a, b in runs]
             off = cutter.section_starts(f["ranges"])[f.get("n_khutba", 0)] if f["role"] == "khutba" else 0
-            item["issues"] = [{**x, "t": fmt(x["t"] + off)} for x in check_recitation(words, q)]
+            # الفحص لكل ركعة لوحدها (كل ركعة بسورتها) — لو اتعمل على الكل مرة واحدة بيطلع تنبيهات غلط كتير
+            issues, o = [], off
+            for a, b in pr:
+                w1 = [(o + ws - a, w) for s in t["segments"] for ws, _, w in s["words"] if a <= ws <= b]
+                issues += check_recitation(w1, q)
+                o += b - a
+            item["issues"] = [{**x, "t": fmt(x["t"])} for x in issues]
             if f["role"] != "khutba":
                 item["caption"] = captions.recitation(settings, who["tag"], "العشاء" if f["role"] == "isha" else "الجمعة", runs, mo, yr)
         if f["role"] == "khutba":

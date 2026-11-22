@@ -56,14 +56,28 @@ def takbir_after(r, t):
 
 
 def fatiha_start(r, t, end_t=None):
-    # لازم "الرحمن الرحيم" بعدها علشان منخلطش مع "الحمد لله رب العالمين" في أول الخطبة الثانية
-    return r.find_seq("الحمد لله رب العالمين الرحمن الرحيم", t, end_t)
+    # لازم "الرحمن الرحيم" بعدها علشان منخلطش مع "الحمد لله رب العالمين" في أول الخطبة الثانية،
+    # والكلمات متصلة (≤ 15 ث) — "ربنا ولك الحمد" وقت الرفع من الركوع ممكن تتسمع "الحمد لله رب العالمين"
+    i = r.find_seq("الحمد لله رب العالمين الرحمن الرحيم", t, end_t)
+    return i
+
+
+def fatiha_onset(r, i):
+    """وقت بداية الفاتحة. لو كلماتها متفرقة (Whisper حط «الحمد لله رب العالمين» بدري)، نحددها من الصوت:
+    آخر سكتة ≥ 1.2 ث قبل «الرحمن الرحيم» بـ 3 ث = بعد تكبيرة القيام."""
+    t0, t_rahman = r.words[i][0], r.words[i + 4][0]
+    if t_rahman - t0 <= 15:
+        return t0
+    gaps = [e for s, e in silences(r) if e - s >= 1.2 and e <= t_rahman - 3 and e >= t_rahman - 20]
+    return max(gaps) if gaps else t_rahman - 5
 
 
 def fatiha_end_idx(r, i):
     """index آخر كلمة في الفاتحة (الضالين/آمين) بعد i."""
     for k in range(i, min(i + 60, len(r.words))):
-        if r.words[k][2] in ("الضالين", "الضالين،") or r.words[k][2].startswith("الضال"):
+        w = r.words[k][2]
+        # Whisper ساعات بيكتبها غلط («الضامفد») ← أي كلمة تبدأ بـ«الض» بعد «المغضوب»
+        if w.startswith("الضال") or (w.startswith("الض") and any("المغضوب" in x[2] for x in r.words[max(i, k - 4):k])):
             if k + 1 < len(r.words) and (r.words[k + 1][2] in ("امين", "آمين", "امنا") or (r.words[k + 1][2].startswith("ام") and len(r.words[k + 1][2]) <= 5 and r.words[k + 1][0] - r.words[k][1] < 4)):
                 return k + 1
             return k
@@ -99,7 +113,7 @@ def rakah(r, q, t):
     last_ay = q.best(" ".join(surah_txt.split()[-14:])) if surah_txt else None
     return {
         "fatiha_i": i, "fatiha_end_i": fe, "last_i": last, "takbir": tk,
-        "start": r.words[i][0], "surah_start": r.words[fe + 1][0] if fe is not None and fe + 1 < len(r.words) else None,
+        "start": fatiha_onset(r, i), "surah_start": r.words[fe + 1][0] if fe is not None and fe + 1 < len(r.words) else None,
         "end": r.words[last][1] if last is not None else None,
         "first": first_ay[:2] if first_ay else None, "last": last_ay[:2] if last_ay else None,
     }
@@ -241,7 +255,7 @@ def rakah_ranges(r, rk, prev_floor, skip_fatiha=False):
                     cut_t = a + max(prev_end * 0.02 + 0.1, s_ * 0.02 - 0.6)
                     break
         return [[cut_t, end]]
-    start = max(recitation_start(r, W[rk["fatiha_i"]][0]), prev_floor)
+    start = max(recitation_start(r, rk["start"]), prev_floor)
     if has_surah:
         f_end = sound_end(r, W[fe][1])
         s_start = sound_start(r, W[fe + 1][0], f_end)
