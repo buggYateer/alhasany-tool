@@ -132,24 +132,34 @@ function upload(file) {
 
 /* ---------------- أول تشغيل: مكان الفولدر ---------------- */
 function pageSetup(st) {
+  const join = p => p.replace(/[\\/]+$/, "") + "\\Alhasany";
   app.innerHTML = `
-    <div class="page-h"><h1>أهلًا بيك في أداة الحسني</h1><p>أول مرة بس: اختار البارتيشن اللي هيتعمل فيه فولدر <b dir="ltr">Alhasany</b> (فيه الخام والمقصوص وكل شغل الأداة).</p></div>
+    <div class="page-h"><h1>أهلًا بيك في أداة الحسني</h1><p>أول مرة بس: اختار المكان اللي هيتعمل فيه فولدر <b dir="ltr">Alhasany</b> (فيه الخام والمقصوص وكل شغل الأداة) — أي بارتيشن أو أي فولدر.</p></div>
     <div class="card">
+      ${isLocal ? `<button class="btn gold" id="pickBtn" style="width:100%"><span class="ms">folder_open</span>اختار فولدر من الكمبيوتر…</button>
+      <p class="muted small" style="margin:8px 4px 14px">هتفتح نافذة الويندوز العادية — اختار الفولدر اللي عايز تحط فيه الشغل، والأداة هتعمل جواه <span dir="ltr">Alhasany</span>.</p>
+      <h4 style="margin:0 4px 8px;font-size:14px;color:var(--muted)">أو بسرعة على بارتيشن:</h4>` :
+      `<p class="warnline" style="margin:0 0 12px"><span class="ms">info</span>اختيار الفولدر بيبقى أسهل من الكمبيوتر نفسه — أو اختار بارتيشن من هنا:</p>`}
       <div class="list">${st.drives.map(d => `
         <button class="item" data-p="${esc(d.path)}"><span class="ic"><span class="ms">hard_drive</span></span>
-          <span class="tx"><span class="t" dir="ltr" style="display:block;text-align:right">${esc(d.path)}Alhasany</span>
-          <span class="m"><span>فاضي ${d.free_gb} من ${d.total_gb} جيجا</span>${d.path === st.suggest ? "<span style='color:var(--ok);font-weight:700'>← مقترح</span>" : ""}${d.path.startsWith("C") ? "<span>(C بيتمسح لو الويندوز اتسطّب من جديد)</span>" : ""}</span></span>
+          <span class="tx"><span class="t fname" dir="ltr">${esc(join(d.path))}</span>
+          <span class="m"><span>فاضي ${d.free_gb} من ${d.total_gb} جيجا</span>${d.path.startsWith("C") ? "<span>(C بيتمسح لو الويندوز اتسطّب من جديد)</span>" : ""}</span></span>
           <span class="ms go">chevron_left</span></button>`).join("")}</div>
       <p class="muted small" style="margin:12px 4px 0">جواه هيتعمل: <span dir="ltr">Raw · Cut · Work · Backups · Models · Tools</span> — ومفيش أي تنزيل من غير ما تأكد.</p>
     </div>`;
-  app.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", async () => {
-    if (!confirm(`هعمل الفولدر في ${b.dataset.p}Alhasany — تمام؟`)) return;
-    busy(b, true, "بعمل الفولدرات…");
-    try { await api("/api/setup", {parent: b.dataset.p}); location.hash = "#/"; }
-    catch (e) { toast(e.message, true); busy(b, false); }
-  }));
+  const choose = async (parent, btn) => {
+    if (!confirm(`هعمل الفولدر هنا:\n${join(parent)}\n\nتمام؟`)) return;
+    busy(btn, true, "بعمل الفولدرات…");
+    try { await api("/api/setup", {parent}); toast("✓ الفولدرات اتعملت"); location.hash = "#/"; route(); }
+    catch (e) { toast(e.message, true); busy(btn, false); }
+  };
+  app.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", () => choose(b.dataset.p, b)));
+  $("#pickBtn")?.addEventListener("click", async e => {
+    const b = e.currentTarget; busy(b, true, "اختار من النافذة اللي فتحت…");
+    try { const r = await api("/api/pick_folder", {title: "اختار مكان فولدر Alhasany"}); busy(b, false); if (r.path) choose(r.path, b); }
+    catch (err) { toast(err.message, true); busy(b, false); }
+  });
 }
-
 /* ---------------- بيانات التسجيل ---------------- */
 async function pageNew(file) {
   setNav("home");
@@ -453,7 +463,7 @@ async function pageSettings() {
 
     <div class="sec-h"><h2>الفولدرات</h2></div>
     <div class="card"><div class="form">
-      <label class="fld full"><span>فولدر تسجيلات إضافي (اختياري — لو المايك بيحفظ في مكان تاني)</span><input id="rawDir" value="${esc(s.raw_dir || "")}" dir="ltr"></label>
+      <div class="fld full"><span>فولدر تسجيلات إضافي (اختياري — لو المايك بيحفظ في مكان تاني)</span><div class="secret"><input id="rawDir" value="${esc(s.raw_dir || "")}" dir="ltr">${isLocal ? `<button class="btn small" id="rawPick"><span class="ms">folder_open</span>اختيار…</button>` : ""}</div></div>
       <label class="fld"><span>تصحيح التاريخ الهجري (أيام)</span><input id="hijri" type="number" value="${esc(s.hijri_offset_days || 0)}"></label>
     </div><div class="actions"><button class="btn small primary" id="dirSave">احفظ</button></div></div>
 
@@ -491,6 +501,7 @@ async function pageSettings() {
     }).filter(Boolean);
     try { await api("/api/settings", {sheikhs: list}); toast("✓ اتحفظ"); } catch (e) { toast(e.message, true); }
   });
+  $("#rawPick")?.addEventListener("click", async () => { const r = await api("/api/pick_folder", {title: "فولدر التسجيلات"}); if (r.path) $("#rawDir").value = r.path; });
   $("#dirSave").addEventListener("click", async () => {
     try { await api("/api/settings", {raw_dir: $("#rawDir").value.trim(), hijri_offset_days: Number($("#hijri").value) || 0}); toast("✓ اتحفظ"); } catch (e) { toast(e.message, true); }
   });

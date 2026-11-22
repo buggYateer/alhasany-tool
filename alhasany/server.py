@@ -154,6 +154,25 @@ def api_setup(q, body):
     return {"job": jid, "root": str(root)}
 
 
+PICK_FOLDER = r"""
+import sys, tkinter as tk
+from tkinter import filedialog
+r = tk.Tk(); r.withdraw(); r.attributes("-topmost", True)
+p = filedialog.askdirectory(title=sys.argv[1], mustexist=True)
+sys.stdout.buffer.write((p or "").encode("utf-8"))
+"""
+
+
+def api_pick_folder(q, body):
+    """نافذة الويندوز العادية لاختيار فولدر (بتظهر على شاشة الكمبيوتر)."""
+    import subprocess
+    import sys
+    out = subprocess.run([sys.executable, "-c", PICK_FOLDER, body.get("title") or "اختار الفولدر"],
+                         capture_output=True, timeout=600)
+    p = out.stdout.decode("utf-8", "replace").strip()
+    return {"path": str(Path(p)) if p else ""}
+
+
 def api_raw(q, body):
     jobs = {p.stem[4:]: p for p in work_dir().glob("job_*.json")}
     out = []
@@ -358,7 +377,7 @@ def api_tg_publish(q, body):
 
 
 ROUTES = {
-    ("GET", "/api/status"): api_status, ("POST", "/api/setup"): api_setup,
+    ("GET", "/api/status"): api_status, ("POST", "/api/setup"): api_setup, ("POST", "/api/pick_folder"): api_pick_folder,
     ("GET", "/api/raw"): api_raw, ("GET", "/api/meta"): api_meta,
     ("POST", "/api/process"): api_process, ("GET", "/api/job"): api_job, ("GET", "/api/jobs"): api_jobs,
     ("POST", "/api/caption"): api_caption, ("POST", "/api/title"): api_title,
