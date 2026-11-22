@@ -20,7 +20,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd")
     u = sub.add_parser("ui")
     u.add_argument("--no-browser", action="store_true")
-    u.add_argument("--port", type=int, default=8765)
+    u.add_argument("--port", type=int, default=8770)
     sub.add_parser("setup")
     sub.add_parser("check")
     i = sub.add_parser("info")
@@ -45,7 +45,7 @@ def main():
                 sys.exit("تنزيل المكتبات فشل — اتأكد من النت وجرّب تاني")
     if a.cmd in (None, "ui"):
         from .server import serve
-        return serve(open_browser=not getattr(a, "no_browser", False), port=getattr(a, "port", 8765))
+        return serve(open_browser=not getattr(a, "no_browser", False), port=getattr(a, "port", 8770))
     if a.cmd == "check":
         print(json.dumps({**setup.report(setup.root_dir()), "root": str(setup.root_dir() or "")}, ensure_ascii=False, indent=1))
         return

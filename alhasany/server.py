@@ -17,7 +17,7 @@ from pathlib import Path
 from . import pipeline, setup, site, tg, titles
 from .config import APP_DIR, load_secrets, load_settings, save_secrets, update_settings, work_dir
 
-PORT = 8765
+PORT = 8770
 WEB = Path(__file__).parent / "web"
 AUDIO = (".wav", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".amr", ".3gp", ".wma", ".mp4")
 JOBS = {}             # id ← {"state", "log", "kind"}
@@ -507,6 +507,25 @@ class Handler(BaseHTTPRequestHandler):
 
 def serve(open_browser=True, port=PORT):
     global PORT
+    # لو الرقم مستخدم (زي سيرفر الموقع)، ناخد اللي بعده — ويندوز بيسمح لبرنامجين على نفس الرقم
+    # لو واحد على 127.0.0.1 والتاني على 0.0.0.0، فبنتأكد من الاتنين
+    def free(p):
+        for host in ("127.0.0.1", "0.0.0.0"):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                if s.connect_ex(("127.0.0.1", p)) == 0:
+                    return False
+                s.close()
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1) if os.name == "nt" else None
+                s.bind((host, p))
+            except OSError:
+                return False
+            finally:
+                s.close()
+        return True
+    while not free(port):
+        port += 1
     PORT = port
     httpd = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     local = f"http://localhost:{port}/"
