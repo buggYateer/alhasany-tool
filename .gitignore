@@ -1,0 +1,19 @@
+# أسرار — ممنوع ترفع
+secrets.json
+*token*.txt
+*key*.txt
+.env
+
+# بيانات وصوت
+*.wav
+*.mp3
+*.m4a
+work/
+output/
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+dist/
+*.spec

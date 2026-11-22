@@ -1,0 +1,8 @@
+faster-whisper>=1.2
+nvidia-cublas-cu12; platform_system == "Windows"
+nvidia-cudnn-cu12==9.*; platform_system == "Windows"
+numpy
+hijridate==2.3.0
+pillow
+arabic-reshaper
+python-bidi
