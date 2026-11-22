@@ -1,7 +1,7 @@
 @echo off
 setlocal
 pushd "%~dp0"
-echo Alhasany tool folder: %CD%
+title Alhasany tool
 set "PY="
 rem python.txt = path to an existing python that already has the libraries (per device)
 if exist "python.txt" set /p PY=<"python.txt"
@@ -17,7 +17,6 @@ echo No Python environment for the tool on this device yet.
 echo To set it up (downloads libraries, about 2 GB), run:  Alhasany.bat install
 goto stop
 :run
-echo Using: %PY%
 "%PY%" -m alhasany %*
 if errorlevel 1 pause
 popd

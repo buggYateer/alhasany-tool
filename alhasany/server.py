@@ -510,7 +510,10 @@ def serve(open_browser=True, port=PORT):
     PORT = port
     httpd = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     local = f"http://localhost:{port}/"
-    print(f"أداة الحسني شغالة: {local}\nمن الموبايل (نفس الواي فاي): {phone_url()}\nاقفل الشباك ده عشان تقفل الأداة.")
+    # الشاشة السودا بتعرض العربي بالمقلوب ← رسايلها إنجليزي وقصيرة
+    print("=" * 56 + "\n  Alhasany tool is running - it opened in your browser.\n"
+          "  Keep this window open while you use the tool.\n  Close this window to stop the tool.\n" + "=" * 56)
+    print(f"  PC:    {local}\n  Phone: scan the QR code on the home page of the tool")
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(local)).start()
     try:
