@@ -33,10 +33,16 @@ def main():
     p.add_argument("--merge-prayer", action="store_true")
     a = ap.parse_args()
     # قبل أي حاجة: المكتبات الناقصة بس (اللي موجود على الجهاز بيتستخدم زي ما هو)
+    # مفيش أي تنزيل من غير ما تسأل: setup بس هو اللي بينزّل، وغيره بيعرض الناقص ويسأل
     if a.cmd != "check":
         miss = setup.missing_packages(bool(setup.has_nvidia()))
-        if miss and not setup.install_packages(miss):
-            sys.exit("تنزيل المكتبات فشل — اتأكد من النت وجرّب تاني")
+        if miss:
+            print("مكتبات ناقصة: " + "، ".join(miss))
+            ok = a.cmd == "setup" or (input("أنزّلهم؟ (y/n): ").strip().lower() in ("y", "yes", "ن", "نعم"))
+            if not ok:
+                sys.exit("متنزلش حاجة.")
+            if not setup.install_packages(miss):
+                sys.exit("تنزيل المكتبات فشل — اتأكد من النت وجرّب تاني")
     if a.cmd in (None, "ui"):
         from .server import serve
         return serve(open_browser=not getattr(a, "no_browser", False), port=getattr(a, "port", 8765))

@@ -104,7 +104,10 @@ async function pageHome() {
         }).join("")}</div>` : `<p class="empty">لسه مفيش</p>`}
       </div>
     </div>`;
-  $("#fixBtn")?.addEventListener("click", async e => { busy(e.target, true); await api("/api/setup", {}); location.hash = "#/job/setup"; });
+  $("#fixBtn")?.addEventListener("click", async e => {
+    const big = [!r.model && "موديل التفريغ (حوالي 1.6 جيجا)", !r.ffmpeg && "ffmpeg (حوالي 130 ميجا)", r.missing_packages.length && "مكتبات: " + r.missing_packages.join("، ")].filter(Boolean);
+    if (!confirm("هينزّل من النت:\n• " + big.join("\n• ") + "\n\nأكمّل؟")) return;
+    busy(e.currentTarget, true); await api("/api/setup", {install: true}); location.hash = "#/job/setup"; });
   const inp = $("#upFile"), drop = $("#drop");
   inp.addEventListener("change", () => inp.files[0] && upload(inp.files[0]));
   drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
@@ -137,12 +140,12 @@ function pageSetup(st) {
           <span class="tx"><span class="t" dir="ltr" style="display:block;text-align:right">${esc(d.path)}Alhasany</span>
           <span class="m"><span>فاضي ${d.free_gb} من ${d.total_gb} جيجا</span>${d.path === st.suggest ? "<span style='color:var(--ok);font-weight:700'>← مقترح</span>" : ""}${d.path.startsWith("C") ? "<span>(C بيتمسح لو الويندوز اتسطّب من جديد)</span>" : ""}</span></span>
           <span class="ms go">chevron_left</span></button>`).join("")}</div>
-      <p class="muted small" style="margin:12px 4px 0">جواه هيتعمل: <span dir="ltr">Raw · Cut · Work · Backups · Models · Tools</span> — وبعدها الأداة تنزّل الناقص بس (اللي موجود على الجهاز مش هيتنزل تاني).</p>
+      <p class="muted small" style="margin:12px 4px 0">جواه هيتعمل: <span dir="ltr">Raw · Cut · Work · Backups · Models · Tools</span> — ومفيش أي تنزيل من غير ما تأكد.</p>
     </div>`;
   app.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", async () => {
     if (!confirm(`هعمل الفولدر في ${b.dataset.p}Alhasany — تمام؟`)) return;
     busy(b, true, "بعمل الفولدرات…");
-    try { await api("/api/setup", {parent: b.dataset.p}); location.hash = "#/job/setup"; }
+    try { await api("/api/setup", {parent: b.dataset.p}); location.hash = "#/"; }
     catch (e) { toast(e.message, true); busy(b, false); }
   }));
 }

@@ -137,6 +137,8 @@ def api_setup(q, body):
         setup.make_root(body["parent"])
     root = setup.root_dir()
     jid = "setup"
+    if not body.get("install"):  # اختيار الفولدر بس — التنزيل بزرار لوحده وبعد ما تأكد
+        return {"root": str(root)}
 
     def work(log):
         r = setup.report(root)
