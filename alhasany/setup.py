@@ -171,7 +171,7 @@ def make_root(parent):
     root = Path(parent) / ROOT_NAME if Path(parent).name != ROOT_NAME else Path(parent)
     for name, desc in FOLDERS.items():
         (root / name).mkdir(parents=True, exist_ok=True)
-    readme = root / "اقرأني.txt"
+    readme = root / "README.txt"
     if not readme.exists():
         readme.write_text("فولدرات أداة الحسني:\n\n" + "\n".join(f"{k}\t{v}" for k, v in FOLDERS.items()) + "\n",
                           encoding="utf-8-sig")
