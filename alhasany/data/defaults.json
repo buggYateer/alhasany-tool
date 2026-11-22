@@ -19,6 +19,7 @@
   {"key": "jibreel", "sheikh": "أحمد", "name": "سلسلة حديث جبريل (مراتب الدين)", "numbered": true, "last_number": 39, "last_msg": 640, "index_msg": 641, "style": "jibreel"},
   {"key": "yahya", "sheikh": "يحيى", "name": "وقفة مع آية", "tag": "وقفة_مع_آية", "last_msg": 633, "index_msg": 642, "style": "ayah"},
   {"key": "fiqh", "sheikh": "معاذ", "name": "سلسلة الفقه", "tag": "سلسلة_الفقه", "last_msg": 630, "index_msg": 643, "style": "fiqh"},
+  {"key": "hujurat", "sheikh": "معاذ", "name": "آداب سورة الحجرات", "index_msg": 644, "style": "ayah", "finished": true},
   {"key": "sayed", "sheikh": "سيد", "name": "دروس الشيخ سيد عبدالعال", "last_msg": 582, "index_msg": 645, "style": "free"}
  ],
  "months": ["محرم", "صفر", "ربيع_أول", "ربيع_ثان", "جماد_أول", "جماد_آخر", "رجب", "شعبان", "رمضان", "شوال", "ذو_القعدة", "ذو_الحجة"]

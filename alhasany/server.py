@@ -14,7 +14,8 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import pipeline, setup, site, tg, titles
+from . import channel, pipeline, setup, site, tg, titles
+from .util import fmt
 from .config import APP_DIR, load_secrets, load_settings, save_secrets, update_settings, work_dir
 
 PORT = 8770
@@ -186,6 +187,14 @@ def api_raw(q, body):
 
 
 def api_meta(q, body):
+    # رقم الدرس و«الدرس السابق» من الفهرس نفسه (لو نشرت بإيدك أو عدّلت الفهرس)
+    if load_secrets().get("bot_token"):
+        try:
+            reg = channel.load()
+            channel.refresh_indexes(reg, log=lambda *_: None)
+            channel.save(reg)
+        except Exception:  # noqa: BLE001 — من غير نت: نكمّل بالمحفوظ
+            pass
     s = load_settings()
     m = pipeline.default_meta(q["file"], s)
     return {"meta": m, "sheikhs": s["sheikhs"], "guests": s["guest_tags"], "series": s["series"]}
@@ -289,7 +298,9 @@ def api_tg_find(q, body):
     job = load_job(jid)
     names = [f["name"] for f in job["files"] if not f.get("msg_id")]
     logs = []
-    found = tg.find_uploads(names, log=logs.append, start=body.get("start"))
+    if body.get("start"):
+        channel.scan(start=int(body["start"]), log=logs.append)
+    found = channel.find_names(names, log=logs.append)
     for f in job["files"]:
         if f["name"] in found:
             f["msg_id"] = found[f["name"]]["id"]
@@ -376,7 +387,60 @@ def api_tg_publish(q, body):
     return {"steps": steps, "file": f}
 
 
+def api_channel(q, body):
+    return channel.listing(int(q.get("limit") or 60))
+
+
+def api_channel_scan(q, body):
+    logs = []
+    channel.scan(start=int(body["start"]) if body.get("start") else None, log=logs.append)
+    return {**channel.listing(), "log": logs}
+
+
+def api_channel_sections(q, body):
+    ser = next((x for x in load_settings()["series"] if x["key"] == body["series"]), None)
+    if not ser or not ser.get("index_msg"):
+        return {"sections": []}
+    cur = tg.read_index(ser["index_msg"])
+    return {"sections": tg.index_sections(cur), "section": tg.section_of(cur, ser.get("last_msg"))}
+
+
+def api_channel_add_index(q, body):
+    """رسالة نزلت بإيدك ← سطر في فهرس السلسلة (+ الموقع لو مفتوح). بعد موافقتك."""
+    mid, key = int(body["id"]), body["series"]
+    ser = next((x for x in load_settings()["series"] if x["key"] == key), None)
+    if not ser or not ser.get("index_msg"):
+        raise ValueError("السلسلة دي ملهاش فهرس")
+    line = (body.get("line") or "").strip()
+    if not line:
+        raise ValueError("اكتب سطر الفهرس")
+    steps = []
+    cur = tg.read_index(ser["index_msg"])
+    tg.backup(setup.root_dir(), "index_%s" % ser["index_msg"], cur)
+    new = tg.index_add(cur, mid, line, body.get("section"), ser.get("numbered", False))
+    if new != cur:
+        tg.set_index(ser["index_msg"], new)
+        steps.append("✓ اتضاف لفهرس " + ser["name"])
+    else:
+        steps.append("موجود في الفهرس قبل كده")
+    reg = channel.load()
+    channel.refresh_indexes(reg, log=steps.append)
+    channel.save(reg)
+    p = reg["posts"].get(str(mid))
+    if p:
+        f = {"msg_id": mid, "name": p.get("file_name") or "", "duration": fmt(p.get("duration") or 0),
+             "caption": p.get("caption", ""), "file": "", "index_line": line, "index_section": body.get("section"),
+             "title": line}
+        try:
+            steps += site.sync({"meta": {}}, f, ser)
+        except Exception as e:  # noqa: BLE001
+            steps.append("⚠ الموقع: %s" % e)
+    return {"steps": steps}
+
+
 ROUTES = {
+    ("GET", "/api/channel"): api_channel, ("POST", "/api/channel/scan"): api_channel_scan,
+    ("POST", "/api/channel/sections"): api_channel_sections, ("POST", "/api/channel/add_index"): api_channel_add_index,
     ("GET", "/api/status"): api_status, ("POST", "/api/setup"): api_setup, ("POST", "/api/pick_folder"): api_pick_folder,
     ("GET", "/api/raw"): api_raw, ("GET", "/api/meta"): api_meta,
     ("POST", "/api/process"): api_process, ("GET", "/api/job"): api_job, ("GET", "/api/jobs"): api_jobs,

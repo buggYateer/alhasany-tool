@@ -45,6 +45,7 @@ async function route() {
     if (path.startsWith("/job/")) return await pageJob(decodeURIComponent(path.slice(5)));
     if (path === "/new") return await pageNew(q.get("f"));
     if (path === "/settings") return await pageSettings();
+    if (path === "/channel") return await pageChannel();
     return await pageHome();
   } catch (e) {
     app.innerHTML = `<div class="badline"><span class="ms">error</span>${esc(e.message)}</div>`;
@@ -430,6 +431,79 @@ async function publish(id, job, f, i, btn) {
     const ul = $("#steps" + i) || $("#f" + i + " .pubbox");
     ul.insertAdjacentHTML("beforeend", r.steps.map(s => `<div class="${s.startsWith("⚠") ? "warnline" : "okline"}" style="margin-top:6px">${esc(s)}</div>`).join(""));
   } catch (e) { toast(e.message, true); busy(btn, false); }
+}
+
+/* ---------------- القناة: آخر المنشور ---------------- */
+async function pageChannel(data) {
+  setNav("channel");
+  const d = data || await api("/api/channel");
+  const url = "https://t.me/masjed_alhasany/";
+  const serName = k => (d.series.find(s => s.key === k) || {}).name || "";
+  const when = t => t ? new Date(t * 1000).toLocaleString("ar-EG-u-nu-latn", {weekday: "short", day: "numeric", month: "numeric", hour: "numeric", minute: "2-digit"}) : "";
+  const dur = s => s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : "";
+  const audio = d.posts.filter(p => p.kind === "audio");
+  const manualMissing = audio.filter(p => !p.via_tool && p.series && !p.in_index).length;
+  const row = p => {
+    if (p.kind !== "audio") return `<div class="item" style="opacity:.75"><span class="ic"><span class="ms">${p.is_index ? "list" : p.kind === "photo" ? "image" : "chat"}</span></span>
+      <span class="tx"><span class="t">${p.is_index ? "رسالة فهرس" : esc((p.text || "").slice(0, 90) || "رسالة")}</span><span class="m"><a href="${url}${p.id}" target="_blank" rel="noopener">#${p.id}</a><span>${when(p.date)}</span></span></span></div>`;
+    const tags = [
+      p.via_tool ? `<span class="chip ok">من الأداة</span>` : `<span class="chip">بالإيد</span>`,
+      p.series ? (p.in_index ? `<span class="chip ok">في الفهرس</span>` : `<span class="chip warn">مش في الفهرس</span>`) : "",
+      d.site_sync && p.on_site !== null ? (p.on_site ? `<span class="chip ok">على الموقع</span>` : `<span class="chip warn">مش على الموقع</span>`) : "",
+    ].join("");
+    const canAdd = p.series && !p.in_index;
+    return `<div class="item" style="flex-wrap:wrap" id="p${p.id}">
+      <span class="ic ${p.in_index || p.via_tool ? "done" : ""}"><span class="ms">graphic_eq</span></span>
+      <span class="tx"><span class="t fname" dir="auto">${esc(p.file_name || "ملف صوت")}</span>
+        <span class="m"><a href="${url}${p.id}" target="_blank" rel="noopener" style="color:var(--accent)">#${p.id}</a><span>${when(p.date)}</span><span>${dur(p.duration)}</span>${p.series ? `<span>${esc(serName(p.series))}</span>` : ""}</span>
+        <span class="chips" style="margin-top:4px">${tags}</span></span>
+      ${canAdd ? `<button class="btn small gold" data-add="${p.id}"><span class="ms">playlist_add</span>ضيفه للفهرس</button>` : ""}
+      <div class="addbox" id="ab${p.id}" hidden style="flex-basis:100%"></div></div>`;
+  };
+  app.innerHTML = `
+    <div class="page-h"><h1>آخر المنشور على القناة</h1><p>كل اللي نزل — من الأداة أو بإيدك. اللي نزل بإيدك ومش في الفهرس تقدر تضيفه من هنا.</p></div>
+    <div class="card"><div class="row-flex">
+      <button class="btn primary" id="scanBtn"><span class="ms">sync</span>حدّث من القناة</button>
+      <span class="muted small">${d.scanned_at ? "آخر تحديث: " + when(d.scanned_at) : "لسه متقريتش"} ${d.max_id ? "· لحد رسالة " + d.max_id : ""}</span>
+      <span class="spacer"></span>
+      <details><summary class="muted small" style="cursor:pointer">اقرا من رسالة معيّنة</summary>
+        <div class="secret" style="margin-top:6px"><input id="fromId" type="number" placeholder="مثلًا 600" style="background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;min-height:40px;width:120px"><button class="btn small" id="fromBtn">اقرا</button></div></details>
+    </div>
+    ${manualMissing ? `<div class="warnline" style="margin-top:10px"><span class="ms">warning</span>${manualMissing} درس نزل بإيدك ومش في الفهرس</div>` : ""}
+    <p class="muted small" style="margin:10px 0 0">رقم الدرس و«الدرس السابق» بيتاخدوا من الفهرس نفسه كل مرة — فلو نشرت بإيدك وضفته هنا، الدرس الجاي من الأداة هيطلع رقمه صح.</p></div>
+    <div class="sec-h"><h2>الرسايل</h2><small>${d.posts.length}</small></div>
+    ${d.posts.length ? `<div class="list">${d.posts.map(row).join("")}</div>` : `<p class="empty">دوس «حدّث من القناة»</p>`}`;
+  const scan = async (btn, start) => {
+    busy(btn, true, "بقرا القناة…");
+    try { const r = await api("/api/channel/scan", start ? {start} : {}); toast(r.log.slice(-2).join(" — ") || "✓"); pageChannel(r); }
+    catch (e) { toast(e.message, true); busy(btn, false); }
+  };
+  $("#scanBtn").addEventListener("click", e => scan(e.currentTarget));
+  $("#fromBtn").addEventListener("click", e => { const v = Number($("#fromId").value); if (v) scan(e.currentTarget, v); });
+  app.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", async () => {
+    const p = d.posts.find(x => x.id == b.dataset.add), box = $("#ab" + p.id);
+    box.hidden = false; box.innerHTML = `<div class="row-flex"><span class="spin"></span>بقرا الفهرس…</div>`;
+    try {
+      const sec = await api("/api/channel/sections", {series: p.series});
+      box.innerHTML = `<div class="form" style="margin-top:10px">
+        <label class="fld"><span>السلسلة</span><select id="as${p.id}">${d.series.filter(s => s.index_msg).map(s => `<option value="${s.key}" ${s.key === p.series ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+        <label class="fld"><span>القسم</span><select id="ac${p.id}">${sec.sections.map((s, k) => `<option ${(sec.section ? s === sec.section : k === sec.sections.length - 1) ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+        <label class="fld full"><span>سطر الفهرس</span><input id="al${p.id}" value="${esc(p.line || "")}"></label></div>
+        <div class="actions"><button class="btn gold" id="ag${p.id}"><span class="ms">send</span>ضيف للفهرس</button></div><div id="ar${p.id}"></div>`;
+      $("#ag" + p.id).addEventListener("click", async e => {
+        const line = $("#al" + p.id).value.trim(), series = $("#as" + p.id).value;
+        if (!line) return toast("اكتب سطر الفهرس", true);
+        if (!confirm(`«${line}» هيتضاف لفهرس ${serName(series)}\n(نسخة من الفهرس القديم بتتحفظ في Backups)\n\nتمام؟`)) return;
+        busy(e.currentTarget, true, "بضيف…");
+        try {
+          const r = await api("/api/channel/add_index", {id: p.id, series, line, section: $("#ac" + p.id).value});
+          $("#ar" + p.id).innerHTML = r.steps.map(s => `<div class="${s.startsWith("⚠") ? "warnline" : "okline"}" style="margin-top:6px">${esc(s)}</div>`).join("");
+          toast("✓ اتضاف");
+          setTimeout(() => pageChannel(), 1500);
+        } catch (err) { toast(err.message, true); busy(e.currentTarget, false); }
+      });
+    } catch (e) { box.innerHTML = `<div class="badline"><span class="ms">error</span>${esc(e.message)}</div>`; }
+  }));
 }
 
 /* ---------------- الإعدادات ---------------- */
