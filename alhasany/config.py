@@ -38,15 +38,22 @@ def save_secrets(sec):
     SECRETS.write_text(json.dumps(sec, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def work_dir():
+def _root_sub(name, fallback):
     s = load_settings()
-    p = Path(s.get("work_dir") or (APP_DIR / "work"))
+    r = s.get("root")
+    p = Path(r) / name if r else Path(s.get(fallback) or (APP_DIR / name.lower()))
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 
-def output_dir():
-    s = load_settings()
-    p = Path(s.get("output_dir") or (APP_DIR / "output"))
-    p.mkdir(parents=True, exist_ok=True)
+def work_dir():
+    return _root_sub("Work", "work_dir")
+
+
+def output_dir(year=None, month=None):
+    """Alhasany\\Cut\\1448-06 — فولدر لكل شهر هجري."""
+    p = _root_sub("Cut", "output_dir")
+    if year and month:
+        p = p / f"{year}-{int(month):02d}"
+        p.mkdir(parents=True, exist_ok=True)
     return p

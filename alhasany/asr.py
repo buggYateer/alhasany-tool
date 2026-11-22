@@ -32,9 +32,12 @@ def load_model(log=print):
         return _model
     _cuda_dirs()
     from faster_whisper import WhisperModel
+
+    from .setup import find_model, root_dir
+    src = find_model(root_dir()) or MODEL  # الموديل لو موجود على الجهاز، وإلا يتنزّل
     for device, ctype in (("cuda", "int8_float16"), ("cuda", "int8"), ("cpu", "int8")):
         try:
-            _model = WhisperModel(MODEL, device=device, compute_type=ctype)
+            _model = WhisperModel(src, device=device, compute_type=ctype)
             log("التفريغ شغال على " + ("كارت الشاشة" if device == "cuda" else "المعالج (أبطأ)"))
             return _model
         except Exception as e:  # noqa: BLE001

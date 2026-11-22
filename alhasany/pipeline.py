@@ -45,7 +45,7 @@ def transcript_for(path, log=print):
 
 def process(path, meta, log=print, outdir=None):
     settings = load_settings()
-    outdir = Path(outdir or output_dir())
+    outdir = Path(outdir or output_dir(meta.get("year"), meta.get("month")))
     t = transcript_for(path, log)
     cut_meta = {"kind": meta["kind"], "date": meta["date"]}
     if meta["kind"] == "night":

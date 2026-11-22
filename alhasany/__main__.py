@@ -1,4 +1,6 @@
 """سطر الأوامر:
+  python -m alhasany setup                        ← أول مرة: اختيار مكان فولدر Alhasany + تنزيل الناقص بس
+  python -m alhasany check                        ← يعرض الموجود والناقص على الجهاز من غير ما ينزّل حاجة
   python -m alhasany info FILE                    ← البيانات المقترحة (التاريخ، الشيخ، النوع)
   python -m alhasany process FILE [--date 7-6-1448] [--kind night|friday] [--sheikh أحمد] [--khatib "محمد نبيل"]
                                   [--series jibreel|none] [--number 40] [--out DIR]
@@ -16,6 +18,8 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(prog="alhasany")
     sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("setup")
+    sub.add_parser("check")
     i = sub.add_parser("info")
     i.add_argument("file")
     p = sub.add_parser("process")
@@ -25,6 +29,15 @@ def main():
     p.add_argument("--number", type=int)
     p.add_argument("--merge-prayer", action="store_true")
     a = ap.parse_args()
+    from . import setup
+    if a.cmd == "check":
+        print(json.dumps({**setup.report(setup.root_dir()), "root": str(setup.root_dir() or "")}, ensure_ascii=False, indent=1))
+        return
+    if a.cmd in ("setup", "process") and not setup.ensure():
+        sys.exit("فيه حاجة متنزلتش — شوف الرسايل فوق وجرّب تاني")
+    if a.cmd == "setup":
+        print("\n✓ الجهاز جاهز")
+        return
     s = load_settings()
     meta = default_meta(a.file, s)
     if a.cmd == "info":

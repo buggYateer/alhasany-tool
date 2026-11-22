@@ -9,10 +9,11 @@ def ffmpeg_bin(name="ffmpeg"):
     p = shutil.which(name)
     if p:
         return p
-    local = Path(__file__).resolve().parent.parent / "bin" / f"{name}.exe"
-    if local.exists():
-        return str(local)
-    raise RuntimeError(f"مش لاقي {name} — ثبّته (winget install Gyan.FFmpeg)")
+    from .setup import find_ffmpeg, root_dir  # فولدر Alhasany\Tools لو البرنامج هو اللي نزّله
+    d = find_ffmpeg(root_dir())
+    if d and (Path(d) / f"{name}.exe").exists():
+        return str(Path(d) / f"{name}.exe")
+    raise RuntimeError(f"مش لاقي {name} — شغّل: python -m alhasany setup")
 
 
 def fmt(t):

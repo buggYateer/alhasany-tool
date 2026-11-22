@@ -4,6 +4,8 @@
  "raw_dir": "",
  "output_dir": "",
  "hijri_offset_days": 0,
+ "site_sync": false,
+ "site_update_cmd": "",
  "sheikhs": [
   {"short": "يحيى", "tag": "يحيى_زكريا", "full": "يحيى زكريا", "day": "الأربعاء", "khutba_with_prayer": true},
   {"short": "أحمد", "tag": "أحمد_عبدالسلام", "full": "أحمد عبدالسلام", "day": "الثلاثاء"},
